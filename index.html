@@ -3,9 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
+<meta http-equiv="Cache-Control" content="no-cache">
 <title>Top 30 / 60 / 100 mondial – Normal List FIS</title>
 
 <style>
@@ -307,6 +305,7 @@ button.active{
 }
 
 @media(max-width:680px){
+
   main{
     padding:15px
   }
@@ -345,15 +344,24 @@ button.active{
 </div>
 
 <div id="app">
-  <div class="status">Chargement des données FIS…</div>
+  <div class="status">Chargement initial des données FIS…</div>
 </div>
 
 <div class="legend">
-  <span><i class="sw"></i>France</span>
+
+  <span>
+    <i class="sw"></i>
+    France
+  </span>
+
   <span id="legendText">
     La longueur de la barre représente le nombre d’athlètes de la nation dans le Top 30.
   </span>
-  <span>Survol : noms, rangs et points.</span>
+
+  <span>
+    Survol : noms, rangs et points.
+  </span>
+
 </div>
 
 <div class="note">
@@ -365,15 +373,36 @@ button.active{
 
 <div class="tip" id="tip"></div>
 
+
 <script>
 
+/* ============================================================
+   SOURCE DES DONNEES
+   ============================================================ */
+
 const DATA_URL =
-"https://script.google.com/macros/s/AKfycbyYT7LiAKIbiYQqdAs9cyNRGXNbwLmNNkxC2u2aILzuBv5gW1rYHNrQ4uYRaJNhRd4SqA/exec";
+  "https://script.google.com/macros/s/AKfycbyYT7LiAKIbiYQqdAs9cyNRGXNbwLmNNkxC2u2aILzuBv5gW1rYHNrQ4uYRaJNhRd4SqA/exec";
+
+
+/* ============================================================
+   CACHE LOCAL
+
+   Les données sont conservées dans le navigateur.
+
+   A l'ouverture :
+   1. le cache est affiché immédiatement ;
+   2. Apps Script est interrogé en arrière-plan ;
+   3. si les données ont changé, le graphique est actualisé.
+   ============================================================ */
+
+const CACHE_KEY = "fis_normal_list_top100_v1";
+
 
 let ATHLETES = [];
 let FIS_LIST = "";
 let UPDATED = "";
 let level = 30;
+
 
 const selectedNations = [
   "FRA",
@@ -388,12 +417,14 @@ const selectedNations = [
   "SLO"
 ];
 
+
 const disciplines = [
   ["SL","Slalom"],
   ["GS","Géant"],
   ["SG","Super-G"],
   ["DH","Descente"]
 ];
+
 
 const colors = {
   FRA:"#1969d2",
@@ -408,8 +439,13 @@ const colors = {
   SWE:"#d5ad00"
 };
 
+
 const groupMap = new Map();
 
+
+/* ============================================================
+   OUTILS
+   ============================================================ */
 
 function key(sex,disc,nation){
   return `${sex}|${disc}|${nation}`;
@@ -425,35 +461,74 @@ function escapeHtml(value){
 
   return String(value).replace(
     /[&<>"']/g,
-    ch => ({
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      '"':"&quot;",
-      "'":"&#039;"
-    }[ch])
+    function(ch){
+
+      return {
+        "&":"&amp;",
+        "<":"&lt;",
+        ">":"&gt;",
+        '"':"&quot;",
+        "'":"&#039;"
+      }[ch];
+
+    }
   );
 
 }
 
 
 /* ============================================================
-   FORMATAGE DE LA DATE
-   Exemple :
+   DATE
+   Accepte aussi bien :
    2026-09-18T06:02:45.563Z
-   devient :
-   18/09/2026 à 08:02
+   que :
+   2026-09-18 08:02:45
    ============================================================ */
 
 function formatUpdateDate(value){
 
-  if(!value) return "";
+  if(!value){
+    return "";
+  }
 
-  const date = new Date(value);
+  const text = String(value).trim();
+
+
+  /* Format envoyé actuellement par Apps Script :
+     yyyy-MM-dd HH:mm:ss */
+
+  const simpleMatch =
+    text.match(
+      /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/
+    );
+
+
+  if(simpleMatch){
+
+    return (
+      simpleMatch[3] +
+      "/" +
+      simpleMatch[2] +
+      "/" +
+      simpleMatch[1] +
+      " à " +
+      simpleMatch[4] +
+      ":" +
+      simpleMatch[5]
+    );
+
+  }
+
+
+  /* Ancien format ISO éventuel */
+
+  const date = new Date(text);
+
 
   if(Number.isNaN(date.getTime())){
-    return value;
+    return text;
   }
+
 
   return new Intl.DateTimeFormat(
     "fr-FR",
@@ -474,35 +549,144 @@ function formatUpdateDate(value){
 
 
 /* ============================================================
-   GROUPES ATHLÈTES
+   NORMALISATION DES DONNEES
+   ============================================================ */
+
+function normalizeAthletes(source){
+
+  if(!Array.isArray(source)){
+    return [];
+  }
+
+
+  return source
+
+    .map(function(a){
+
+      return {
+
+        Fiscode:
+          String(
+            a.Fiscode ?? ""
+          ),
+
+        Fullname:
+          String(
+            a.Fullname ?? ""
+          ),
+
+        Gender:
+          String(
+            a.Gender ?? ""
+          ),
+
+        Discipline:
+          String(
+            a.Discipline ?? ""
+          ),
+
+        Nation:
+          String(
+            a.Nation ?? ""
+          ),
+
+        Fispoints:
+          Number(
+            a.Fispoints
+          ),
+
+        WorldRank:
+          Number(
+            a.WorldRank
+          ),
+
+        Liste_FIS:
+          String(
+            a.Liste_FIS ?? ""
+          )
+
+      };
+
+    })
+
+    .filter(function(a){
+
+      return (
+
+        ["M","W"].includes(
+          a.Gender
+        )
+
+        &&
+
+        ["SL","GS","SG","DH"].includes(
+          a.Discipline
+        )
+
+        &&
+
+        Number.isFinite(
+          a.WorldRank
+        )
+
+        &&
+
+        a.WorldRank <= 100
+
+      );
+
+    });
+
+}
+
+
+/* ============================================================
+   GROUPES
    ============================================================ */
 
 function rebuildGroups(){
 
   groupMap.clear();
 
+
   for(const athlete of ATHLETES){
 
-    const k = key(
-      athlete.Gender,
-      athlete.Discipline,
-      athlete.Nation
-    );
+    const k =
+      key(
+        athlete.Gender,
+        athlete.Discipline,
+        athlete.Nation
+      );
+
 
     if(!groupMap.has(k)){
       groupMap.set(k,[]);
     }
 
-    groupMap.get(k).push(athlete);
+
+    groupMap
+      .get(k)
+      .push(athlete);
 
   }
+
 
   for(const list of groupMap.values()){
 
     list.sort(
-      (a,b) =>
-        a.WorldRank - b.WorldRank ||
-        a.Fullname.localeCompare(b.Fullname,"fr")
+      function(a,b){
+
+        return (
+          a.WorldRank -
+          b.WorldRank
+        )
+        ||
+        a.Fullname.localeCompare(
+          b.Fullname,
+          "fr"
+        );
+
+      }
     );
 
   }
@@ -512,91 +696,139 @@ function rebuildGroups(){
 
 function members(sex,disc,nation){
 
-  return groupMap.get(
-    key(sex,disc,nation)
-  ) || [];
+  return (
+    groupMap.get(
+      key(
+        sex,
+        disc,
+        nation
+      )
+    )
+    ||
+    []
+  );
 
 }
 
 
 function nationsFor(sex,disc){
 
-  return selectedNations.map(nation=>{
+  return selectedNations.map(
+    function(nation){
 
-    const list = members(
-      sex,
-      disc,
-      nation
-    ).filter(
-      a => a.WorldRank <= level
-    );
+      const list =
+        members(
+          sex,
+          disc,
+          nation
+        )
+        .filter(
+          function(a){
+            return a.WorldRank <= level;
+          }
+        );
 
-    return {
-      nation,
-      count:list.length,
-      best:list.length
-        ? list[0].WorldRank
-        : 999
-    };
 
-  });
+      return {
+
+        nation:nation,
+
+        count:list.length,
+
+        best:
+          list.length
+          ? list[0].WorldRank
+          : 999
+
+      };
+
+    }
+  );
 
 }
 
 
 /* ============================================================
-   INFO-BULLES
+   INFOBULLES
    ============================================================ */
 
 function tooltipHtml(sex,disc,nation){
 
   const sexName =
     sex === "M"
-      ? "HOMMES"
-      : "DAMES";
+    ? "HOMMES"
+    : "DAMES";
+
+
+  const discipline =
+    disciplines.find(
+      function(d){
+        return d[0] === disc;
+      }
+    );
+
 
   const discName =
-    disciplines.find(
-      d => d[0] === disc
-    )[1];
+    discipline
+    ? discipline[1]
+    : disc;
+
 
   const list =
     members(
       sex,
       disc,
       nation
-    ).filter(
-      a => a.WorldRank <= level
+    )
+    .filter(
+      function(a){
+        return a.WorldRank <= level;
+      }
     );
 
-  const detail =
-    list.length
 
-    ? list.map(a=>
+  let detail = "";
 
-      `<div class="athlete">
 
-        <span class="rank">
-          ${a.WorldRank}
-        </span>
+  if(list.length){
 
-        <span class="name">
-          ${escapeHtml(a.Fullname)}
-        </span>
+    detail =
+      list.map(
+        function(a){
 
-        <span class="pts">
-          ${Number(a.Fispoints).toFixed(2)} pts
-        </span>
+          return `
 
-      </div>`
+            <div class="athlete">
 
-    ).join("")
+              <span class="rank">
+                ${a.WorldRank}
+              </span>
 
-    :
+              <span class="name">
+                ${escapeHtml(a.Fullname)}
+              </span>
 
-    `<div class="tip-summary">
-      Aucun athlète dans ce Top ${level}
-    </div>`;
+              <span class="pts">
+                ${Number(a.Fispoints).toFixed(2)} pts
+              </span>
+
+            </div>
+
+          `;
+
+        }
+      )
+      .join("");
+
+  }else{
+
+    detail =
+      `<div class="tip-summary">
+         Aucun athlète dans ce Top ${level}
+       </div>`;
+
+  }
+
 
   return `
 
@@ -605,16 +837,53 @@ function tooltipHtml(sex,disc,nation){
     </div>
 
     <div class="tip-summary">
+
       <strong>
         ${list.length}
         athlète${list.length>1?"s":""}
         dans le Top ${level}
       </strong>
+
     </div>
 
     ${detail}
 
   `;
+
+}
+
+
+/* ============================================================
+   SOUS-TITRE
+   ============================================================ */
+
+function updateSubtitle(){
+
+  let text =
+    `Normal List FIS ${FIS_LIST}` +
+    ` · 10 nations de référence` +
+    ` · Slalom, Géant, Super-G et Descente`;
+
+
+  const formattedDate =
+    formatUpdateDate(UPDATED);
+
+
+  if(formattedDate){
+
+    text +=
+      ` · Mise à jour : ${formattedDate}`;
+
+  }
+
+
+  document
+    .getElementById("subtitle")
+    .textContent = text;
+
+
+  document.title =
+    `Top 30 / 60 / 100 mondial – Normal List FIS ${FIS_LIST}`;
 
 }
 
@@ -628,12 +897,9 @@ function render(){
   const app =
     document.getElementById("app");
 
+
   app.innerHTML = "";
 
-
-  /* ----------------------------------------------------------
-     HOMMES / DAMES
-     ---------------------------------------------------------- */
 
   for(
     const [sex,label,cls]
@@ -646,20 +912,22 @@ function render(){
     const section =
       document.createElement("section");
 
+
     section.className =
       "sex " + cls;
 
+
     section.innerHTML =
+
       `<h2>${label}</h2>
        <div class="disc-grid"></div>`;
 
+
     const grid =
-      section.querySelector(".disc-grid");
+      section.querySelector(
+        ".disc-grid"
+      );
 
-
-    /* --------------------------------------------------------
-       DISCIPLINES
-       -------------------------------------------------------- */
 
     for(const [disc,name] of disciplines){
 
@@ -669,47 +937,58 @@ function render(){
           disc
         );
 
+
       const max =
         Math.max(
           1,
           ...nations.map(
-            n => n.count
+            function(n){
+              return n.count;
+            }
           )
         );
 
-      const card =
-        document.createElement("article");
 
-      card.className = "card";
+      const card =
+        document.createElement(
+          "article"
+        );
+
+
+      card.className =
+        "card";
 
 
       let html =
-        `<h3>
-          ${name} (${disc})
-        </h3>
 
-        <div class="small">
-          Nombre d’athlètes dans le Top ${level}
-        </div>`;
+        `<h3>
+           ${name} (${disc})
+         </h3>
+
+         <div class="small">
+           Nombre d’athlètes dans le Top ${level}
+         </div>`;
 
 
       for(const item of nations){
 
         const width =
           item.count
-            ? Math.max(
-                9,
-                item.count / max * 100
-              )
-            : 0;
+          ?
+          Math.max(
+            9,
+            item.count / max * 100
+          )
+          :
+          0;
 
 
         html += `
 
           <div
             class="nation-row
-              ${item.nation==="FRA"?"fra":""}
-              ${item.count===0?"zero":""}"
+            ${item.nation==="FRA"?"fra":""}
+            ${item.count===0?"zero":""}"
 
             style="--nation:${colorFor(item.nation)}"
 
@@ -745,99 +1024,118 @@ function render(){
       }
 
 
-      card.innerHTML = html;
+      card.innerHTML =
+        html;
 
-      grid.appendChild(card);
+
+      grid.appendChild(
+        card
+      );
 
     }
 
 
-    app.appendChild(section);
+    app.appendChild(
+      section
+    );
 
   }
 
 
   /* ==========================================================
-     INDICATEURS FRANCE
+     COMPTEURS FRANCE
      ========================================================== */
 
   const current =
     ATHLETES.filter(
-      a => a.WorldRank <= level
+      function(a){
+        return a.WorldRank <= level;
+      }
+    );
+
+
+  const fra =
+    current.filter(
+      function(a){
+        return a.Nation === "FRA";
+      }
     );
 
 
   const fraTotal =
-    current.filter(
-      a => a.Nation === "FRA"
-    ).length;
+    fra.length;
 
 
   const fraMen =
-    current.filter(
-      a =>
-        a.Nation === "FRA" &&
-        a.Gender === "M"
+    fra.filter(
+      function(a){
+        return a.Gender === "M";
+      }
     ).length;
 
 
   const fraWomen =
-    current.filter(
-      a =>
-        a.Nation === "FRA" &&
-        a.Gender === "W"
+    fra.filter(
+      function(a){
+        return a.Gender === "W";
+      }
     ).length;
 
 
-  document.getElementById("summary").innerHTML =
+  document
+    .getElementById("summary")
+    .innerHTML =
 
-    `<span class="badge">
-       🇫🇷 France : ${fraTotal} présences
-     </span>
+      `<span class="badge">
+         🇫🇷 France : ${fraTotal} présences
+       </span>
 
-     <span class="badge">
-       Hommes : ${fraMen}
-     </span>
+       <span class="badge">
+         Hommes : ${fraMen}
+       </span>
 
-     <span class="badge">
-       Dames : ${fraWomen}
-     </span>
+       <span class="badge">
+         Dames : ${fraWomen}
+       </span>
 
-     ${
-       FIS_LIST
-       ?
-       `<span class="badge">
-          Liste FIS ${escapeHtml(FIS_LIST)}
-        </span>`
-       :
-       ""
-     }`;
+       ${
+         FIS_LIST
+         ?
+         `<span class="badge">
+            Liste FIS ${escapeHtml(FIS_LIST)}
+          </span>`
+         :
+         ""
+       }`;
 
 
-  /* ----------------------------------------------------------
-     BOUTONS
-     ---------------------------------------------------------- */
+  /* Boutons */
 
   document
     .querySelectorAll(
       "button[data-level]"
     )
     .forEach(
+      function(button){
 
-      b =>
-        b.classList.toggle(
+        button.classList.toggle(
           "active",
-          Number(b.dataset.level) === level
-        )
+          Number(
+            button.dataset.level
+          ) === level
+        );
 
+      }
     );
 
 
   document
-    .getElementById("legendText")
+    .getElementById(
+      "legendText"
+    )
     .textContent =
 
-    `La longueur de la barre représente le nombre d’athlètes de la nation dans le Top ${level}.`;
+      `La longueur de la barre représente le nombre d’athlètes de la nation dans le Top ${level}.`;
 
 
   bindTips();
@@ -846,7 +1144,7 @@ function render(){
 
 
 /* ============================================================
-   POSITION INFO-BULLE
+   POSITION INFOBULLE
    ============================================================ */
 
 function positionTip(tip,e){
@@ -854,11 +1152,14 @@ function positionTip(tip,e){
   const gap = 14;
   const margin = 8;
 
+
   let left =
     e.clientX + gap;
 
+
   let top =
     e.clientY + gap;
+
 
   const rect =
     tip.getBoundingClientRect();
@@ -907,59 +1208,248 @@ function positionTip(tip,e){
 
 
 /* ============================================================
-   INFO-BULLES
+   ACTIVATION INFOBULLES
    ============================================================ */
 
 function bindTips(){
 
   const tip =
-    document.getElementById("tip");
+    document.getElementById(
+      "tip"
+    );
 
 
   document
-    .querySelectorAll(".nation-row")
-    .forEach(row=>{
+    .querySelectorAll(
+      ".nation-row"
+    )
+    .forEach(
+      function(row){
 
 
-      row.onmousemove = e => {
+        row.onmousemove =
+          function(e){
 
-        tip.innerHTML =
-          tooltipHtml(
-            row.dataset.sex,
-            row.dataset.disc,
-            row.dataset.nation
-          );
-
-        tip.style.display =
-          "block";
-
-        positionTip(
-          tip,
-          e
-        );
-
-      };
+            tip.innerHTML =
+              tooltipHtml(
+                row.dataset.sex,
+                row.dataset.disc,
+                row.dataset.nation
+              );
 
 
-      row.onmouseleave =
-        () =>
-          tip.style.display =
-            "none";
+            tip.style.display =
+              "block";
 
-    });
+
+            positionTip(
+              tip,
+              e
+            );
+
+          };
+
+
+        row.onmouseleave =
+          function(){
+
+            tip.style.display =
+              "none";
+
+          };
+
+      }
+    );
 
 }
 
 
 /* ============================================================
-   CHARGEMENT DES DONNÉES
+   CHARGEMENT DU CACHE LOCAL
    ============================================================ */
 
-async function loadData(){
+function loadCache(){
 
-  const app =
-    document.getElementById("app");
+  try{
 
+    const stored =
+      localStorage.getItem(
+        CACHE_KEY
+      );
+
+
+    if(!stored){
+      return false;
+    }
+
+
+    const payload =
+      JSON.parse(stored);
+
+
+    if(
+      !payload ||
+      !Array.isArray(
+        payload.athletes
+      )
+    ){
+      return false;
+    }
+
+
+    const cachedAthletes =
+      normalizeAthletes(
+        payload.athletes
+      );
+
+
+    if(!cachedAthletes.length){
+      return false;
+    }
+
+
+    ATHLETES =
+      cachedAthletes;
+
+
+    FIS_LIST =
+      String(
+        payload.list ||
+        ATHLETES[0]?.Liste_FIS ||
+        ""
+      );
+
+
+    UPDATED =
+      String(
+        payload.updated ||
+        ""
+      );
+
+
+    rebuildGroups();
+
+    updateSubtitle();
+
+    render();
+
+
+    return true;
+
+
+  }catch(error){
+
+    console.warn(
+      "Cache FIS inutilisable",
+      error
+    );
+
+
+    return false;
+
+  }
+
+}
+
+
+/* ============================================================
+   ENREGISTREMENT DU CACHE
+   ============================================================ */
+
+function saveCache(payload){
+
+  try{
+
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify(
+        payload
+      )
+    );
+
+  }catch(error){
+
+    console.warn(
+      "Impossible d'enregistrer le cache FIS",
+      error
+    );
+
+  }
+
+}
+
+
+/* ============================================================
+   APPLICATION DES DONNEES DU SERVEUR
+   ============================================================ */
+
+function applyPayload(payload){
+
+  if(
+    !payload ||
+    !Array.isArray(
+      payload.athletes
+    )
+  ){
+
+    throw new Error(
+      "Format JSON inattendu : athletes absent."
+    );
+
+  }
+
+
+  const newAthletes =
+    normalizeAthletes(
+      payload.athletes
+    );
+
+
+  if(!newAthletes.length){
+
+    throw new Error(
+      "Aucune donnée athlète valide."
+    );
+
+  }
+
+
+  ATHLETES =
+    newAthletes;
+
+
+  FIS_LIST =
+    String(
+      payload.list ||
+      ATHLETES[0]?.Liste_FIS ||
+      ""
+    );
+
+
+  UPDATED =
+    String(
+      payload.updated ||
+      ""
+    );
+
+
+  rebuildGroups();
+
+  updateSubtitle();
+
+  render();
+
+}
+
+
+/* ============================================================
+   VERIFICATION SILENCIEUSE DU SERVEUR
+
+   Le graphique déjà présent reste affiché pendant cette
+   vérification.
+   ============================================================ */
+
+async function refreshFromServer(hasCache){
 
   try{
 
@@ -1007,153 +1497,93 @@ async function loadData(){
     }
 
 
-    ATHLETES =
-      payload.athletes
+    /* --------------------------------------------------------
+       On compare la liste et la date de mise à jour.
+       -------------------------------------------------------- */
 
-      .map(a=>({
-
-        Fiscode:
-          String(
-            a.Fiscode ?? ""
-          ),
-
-        Fullname:
-          String(
-            a.Fullname ?? ""
-          ),
-
-        Gender:
-          String(
-            a.Gender ?? ""
-          ),
-
-        Discipline:
-          String(
-            a.Discipline ?? ""
-          ),
-
-        Nation:
-          String(
-            a.Nation ?? ""
-          ),
-
-        Fispoints:
-          Number(
-            a.Fispoints
-          ),
-
-        WorldRank:
-          Number(
-            a.WorldRank
-          ),
-
-        Liste_FIS:
-          String(
-            a.Liste_FIS ?? ""
-          )
-
-      }))
-
-      .filter(a=>
-
-        ["M","W"]
-          .includes(
-            a.Gender
-          )
-
-        &&
-
-        ["SL","GS","SG","DH"]
-          .includes(
-            a.Discipline
-          )
-
-        &&
-
-        Number.isFinite(
-          a.WorldRank
-        )
-
-        &&
-
-        a.WorldRank <= 100
-
-      );
-
-
-    FIS_LIST =
+    const serverList =
       String(
         payload.list ||
-        ATHLETES[0]?.Liste_FIS ||
         ""
       );
 
 
-    UPDATED =
+    const serverUpdated =
       String(
         payload.updated ||
         ""
       );
 
 
-    rebuildGroups();
+    const dataChanged =
+      !hasCache
+      ||
+      serverList !== FIS_LIST
+      ||
+      serverUpdated !== UPDATED;
 
 
-    document.title =
-      `Top 30 / 60 / 100 mondial – Normal List FIS ${FIS_LIST}`;
+    /* Toujours sauvegarder la réponse correcte */
+
+    saveCache(
+      payload
+    );
 
 
-    const formattedUpdate =
-      formatUpdateDate(
-        UPDATED
+    /* Réaffichage seulement si nécessaire */
+
+    if(dataChanged){
+
+      applyPayload(
+        payload
       );
 
-
-    document
-      .getElementById("subtitle")
-      .textContent =
-
-      `Normal List FIS ${FIS_LIST} · 10 nations de référence · Slalom, Géant, Super-G et Descente`
-
-      +
-
-      (
-        formattedUpdate
-        ?
-        ` · Mise à jour : ${formattedUpdate}`
-        :
-        ""
-      );
-
-
-    render();
+    }
 
 
   }catch(error){
 
-    console.error(error);
+    console.warn(
+      "Vérification FIS impossible :",
+      error
+    );
+
+
+    /* S'il existe déjà un cache, on ne gêne pas l'utilisateur */
+
+    if(hasCache){
+
+      return;
+
+    }
 
 
     document
-      .getElementById("subtitle")
+      .getElementById(
+        "subtitle"
+      )
       .textContent =
 
-      "Impossible de charger la Normal List FIS.";
+        "Impossible de charger la Normal List FIS.";
 
 
-    app.innerHTML =
+    document
+      .getElementById(
+        "app"
+      )
+      .innerHTML =
 
-      `<div class="status error">
+        `<div class="status error">
 
-        Erreur de chargement des données FIS.
+           Erreur de chargement des données FIS.
 
-        <br>
+           <br>
 
-        <small>
-          ${escapeHtml(error.message)}
-        </small>
+           <small>
+             ${escapeHtml(error.message)}
+           </small>
 
-      </div>`;
+         </div>`;
 
   }
 
@@ -1168,33 +1598,60 @@ document
   .querySelectorAll(
     "button[data-level]"
   )
-  .forEach(button=>{
+  .forEach(
+    function(button){
 
-    button.onclick = () => {
+      button.onclick =
+        function(){
 
-      level =
-        Number(
-          button.dataset.level
-        );
+          level =
+            Number(
+              button.dataset.level
+            );
 
-      if(
-        ATHLETES.length
-      ){
 
-        render();
+          if(
+            ATHLETES.length
+          ){
 
-      }
+            render();
 
-    };
+          }
 
-  });
+        };
+
+    }
+  );
 
 
 /* ============================================================
-   DÉMARRAGE
+   DEMARRAGE
+
+   1. Lecture immédiate du cache.
+   2. Affichage instantané si disponible.
+   3. Vérification Apps Script en arrière-plan.
    ============================================================ */
 
-loadData();
+const hasCache =
+  loadCache();
+
+
+if(!hasCache){
+
+  document
+    .getElementById(
+      "subtitle"
+    )
+    .textContent =
+
+      "Premier chargement de la Normal List FIS…";
+
+}
+
+
+refreshFromServer(
+  hasCache
+);
 
 </script>
 
