@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Top 30 / 60 / 100 mondial – Normal List FIS</title>
+<style>
+:root{--ink:#16345f;--muted:#6c7888;--line:#dbe3ec;--panel:#f8fafc;--fra:#1969d2;--men:#244e86;--women:#9d234b}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#182230}
+main{max-width:1580px;margin:auto;padding:24px 28px 20px}
+h1{margin:0;color:var(--ink);font-size:30px}
+.sub{margin:6px 0 18px;color:var(--muted);font-size:15px}
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px}
+.badge{background:#eef4fb;border:1px solid #cad9eb;color:#244e86;padding:7px 11px;border-radius:999px;font-size:13px;font-weight:700}
+.controls{display:flex;gap:10px;justify-content:center;margin:4px 0 18px}
+button{border:1px solid #b8c6d8;background:#fff;color:var(--ink);padding:10px 24px;border-radius:999px;font-weight:800;font-size:15px;cursor:pointer}
+button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.sex{border:1px solid #ccd9e8;border-radius:16px;padding:15px;margin-bottom:18px;background:linear-gradient(#fff,#fafcff)}
+.sex.w{border-color:#e8c9d1}
+.sex h2{text-align:center;margin:0 0 13px;color:var(--men);font-size:23px}
+.sex.w h2{color:var(--women)}
+.disc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:11px 10px 10px;min-width:0}
+.card h3{text-align:center;color:#243b66;margin:0 0 3px;font-size:17px}
+.card .small{text-align:center;color:#7a8594;font-size:11px;margin-bottom:9px}
+.nation-row{display:grid;grid-template-columns:34px 1fr 27px;gap:6px;align-items:center;margin:5px 0;min-height:24px;border-radius:5px;cursor:default}
+.nation-row:hover{outline:2px solid #90a8c7;outline-offset:1px;background:#f7faff}
+.nation{font-size:12px;font-weight:800;text-align:right;color:var(--nation,#475569)}
+.track{height:23px;border-radius:5px;background:#eef2f6;overflow:hidden}
+.bar{height:100%;min-width:10px;border-radius:5px;display:flex;align-items:center;padding-left:6px;color:#fff;font-size:11px;font-weight:800;transition:width .35s ease}
+.nation-row.fra .nation{color:var(--fra)}
+.nation-row.fra .track{background:#dceaff}
+.nation-row.fra .bar{background:var(--fra)!important}
+.nation-row.zero .bar{min-width:0}
+.count{font-size:13px;font-weight:800;text-align:center;color:var(--nation,#243b66)}
+.tip{display:none;position:fixed;z-index:50;min-width:280px;max-width:410px;max-height:75vh;overflow:auto;background:#111827;color:#fff;padding:12px 14px;border-radius:9px;font-size:12px;line-height:1.35;pointer-events:none;box-shadow:0 8px 26px #0005}
+.tip-title{font-size:14px;font-weight:800;margin-bottom:6px}
+.tip-summary{color:#cdd9e8;padding-bottom:7px;margin-bottom:7px;border-bottom:1px solid #ffffff38}
+.athlete{display:grid;grid-template-columns:26px 1fr auto;gap:7px;align-items:baseline;padding:3px 0}
+.athlete .rank{font-weight:800;color:#9ec5fa;text-align:right}
+.athlete .name{font-weight:700}
+.athlete .pts{color:#d1dae7;white-space:nowrap}
+.legend{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin:5px 0 8px;color:#566274;font-size:13px}
+.legend span{display:flex;align-items:center;gap:6px}
+.sw{width:22px;height:12px;border-radius:3px;background:var(--fra)}
+.note{text-align:center;color:#7b8490;font-size:12px;margin-top:7px}
+.status{text-align:center;padding:35px;color:var(--muted);font-weight:700}
+.status.error{color:#9d234b}
+@media(max-width:1220px){.disc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){main{padding:15px}h1{font-size:24px}.disc-grid{grid-template-columns:1fr}.tip{max-width:calc(100vw - 16px)}}
+</style>
+</head>
+<body>
+<main>
+<h1>Top 30, Top 60 et Top 100 mondial – Répartition par nation</h1>
+<div class="sub" id="subtitle">Chargement de la Normal List FIS…</div>
+<div class="summary" id="summary"></div>
+<div class="controls">
+<button data-level="30" class="active">TOP 30</button>
+<button data-level="60">TOP 60</button>
+<button data-level="100">TOP 100</button>
+</div>
+<div id="app"><div class="status">Chargement des données FIS…</div></div>
+<div class="legend"><span><i class="sw"></i>France</span><span id="legendText">La longueur de la barre représente le nombre d’athlètes de la nation dans le Top 30.</span><span>Survol : noms, rangs et points.</span></div>
+<div class="note">Les mêmes dix nations, dans le même ordre et avec la même couleur, sont comparées dans chaque discipline. Une même personne peut apparaître dans plusieurs disciplines.</div>
+</main>
+<div class="tip" id="tip"></div>
+
+<script>
+const DATA_URL="https://script.google.com/macros/s/AKfycbyYT7LiAKIbiYQqdAs9cyNRGXNbwLmNNkxC2u2aILzuBv5gW1rYHNrQ4uYRaJNhRd4SqA/exec";
+
+let ATHLETES=[];
+let FIS_LIST="";
+let UPDATED="";
+let level=30;
+
+const selectedNations=["FRA","NOR","SUI","AUT","ITA","USA","GER","CAN","SWE","SLO"];
+const disciplines=[["SL","Slalom"],["GS","Géant"],["SG","Super-G"],["DH","Descente"]];
+const colors={FRA:"#1969d2",ITA:"#239146",NOR:"#7d7d7d",AUT:"#2d2d2d",SUI:"#d72d37",USA:"#7656b5",GER:"#c99200",SLO:"#009c9c",CAN:"#981f3d",SWE:"#d5ad00"};
+const groupMap=new Map();
+
+function key(sex,disc,nation){return `${sex}|${disc}|${nation}`}
+function colorFor(nation){return colors[nation]||"#64748b"}
+function escapeHtml(value){return String(value).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]))}
+
+function rebuildGroups(){
+  groupMap.clear();
+  for(const athlete of ATHLETES){
+    const k=key(athlete.Gender,athlete.Discipline,athlete.Nation);
+    if(!groupMap.has(k)) groupMap.set(k,[]);
+    groupMap.get(k).push(athlete);
+  }
+  for(const list of groupMap.values()){
+    list.sort((a,b)=>a.WorldRank-b.WorldRank||a.Fullname.localeCompare(b.Fullname,"fr"));
+  }
+}
+
+function members(sex,disc,nation){
+  return groupMap.get(key(sex,disc,nation))||[];
+}
+
+function nationsFor(sex,disc){
+  return selectedNations.map(nation=>{
+    const list=members(sex,disc,nation).filter(a=>a.WorldRank<=level);
+    return {nation,count:list.length,best:list.length?list[0].WorldRank:999};
+  });
+}
+
+function tooltipHtml(sex,disc,nation){
+  const sexName=sex==="M"?"HOMMES":"DAMES";
+  const discName=disciplines.find(d=>d[0]===disc)[1];
+  const list=members(sex,disc,nation).filter(a=>a.WorldRank<=level);
+  const detail=list.length
+    ? list.map(a=>`<div class="athlete"><span class="rank">${a.WorldRank}</span><span class="name">${escapeHtml(a.Fullname)}</span><span class="pts">${Number(a.Fispoints).toFixed(2)} pts</span></div>`).join("")
+    : `<div class="tip-summary">Aucun athlète dans ce Top ${level}</div>`;
+
+  return `<div class="tip-title">${sexName} · ${discName} · ${nation}</div>
+    <div class="tip-summary"><strong>${list.length} athlète${list.length>1?"s":""} dans le Top ${level}</strong></div>${detail}`;
+}
+
+function render(){
+  const app=document.getElementById("app");
+  app.innerHTML="";
+
+  for(const [sex,label,cls] of [["M","HOMMES",""],["W","DAMES","w"]]){
+    const section=document.createElement("section");
+    section.className="sex "+cls;
+    section.innerHTML=`<h2>${label}</h2><div class="disc-grid"></div>`;
+    const grid=section.querySelector(".disc-grid");
+
+    for(const [disc,name] of disciplines){
+      const nations=nationsFor(sex,disc);
+      const max=Math.max(1,...nations.map(n=>n.count));
+      const card=document.createElement("article");
+      card.className="card";
+
+      let html=`<h3>${name} (${disc})</h3><div class="small">Nombre d’athlètes dans le Top ${level}</div>`;
+
+      for(const item of nations){
+        const width=item.count?Math.max(9,item.count/max*100):0;
+        html+=`<div class="nation-row ${item.nation==="FRA"?"fra":""} ${item.count===0?"zero":""}" style="--nation:${colorFor(item.nation)}" data-sex="${sex}" data-disc="${disc}" data-nation="${item.nation}">
+          <div class="nation">${item.nation}</div>
+          <div class="track"><div class="bar" style="width:${width}%;background:${colorFor(item.nation)}"></div></div>
+          <div class="count">${item.count}</div>
+        </div>`;
+      }
+
+      card.innerHTML=html;
+      grid.appendChild(card);
+    }
+
+    app.appendChild(section);
+  }
+
+  const current=ATHLETES.filter(a=>a.WorldRank<=level);
+  const selectedPlaces=current.filter(a=>selectedNations.includes(a.Nation)).length;
+  const fra=current.filter(a=>a.Nation==="FRA").length;
+
+  document.getElementById("summary").innerHTML=
+    `<span class="badge">Top ${level} · ${current.length} places classées</span>
+     <span class="badge">10 nations : ${selectedPlaces} présences</span>
+     <span class="badge">🇫🇷 France : ${fra} présences</span>
+     ${FIS_LIST?`<span class="badge">Liste FIS ${escapeHtml(FIS_LIST)}</span>`:""}`;
+
+  document.querySelectorAll("button[data-level]").forEach(
+    b=>b.classList.toggle("active",Number(b.dataset.level)===level)
+  );
+
+  document.getElementById("legendText").textContent=
+    `La longueur de la barre représente le nombre d’athlètes de la nation dans le Top ${level}.`;
+
+  bindTips();
+}
+
+function positionTip(tip,e){
+  const gap=14,margin=8;
+  let left=e.clientX+gap,top=e.clientY+gap;
+  const rect=tip.getBoundingClientRect();
+  if(left+rect.width>window.innerWidth-margin) left=e.clientX-rect.width-gap;
+  if(top+rect.height>window.innerHeight-margin) top=e.clientY-rect.height-gap;
+  tip.style.left=Math.max(margin,left)+"px";
+  tip.style.top=Math.max(margin,top)+"px";
+}
+
+function bindTips(){
+  const tip=document.getElementById("tip");
+
+  document.querySelectorAll(".nation-row").forEach(row=>{
+    row.onmousemove=e=>{
+      tip.innerHTML=tooltipHtml(row.dataset.sex,row.dataset.disc,row.dataset.nation);
+      tip.style.display="block";
+      positionTip(tip,e);
+    };
+    row.onmouseleave=()=>tip.style.display="none";
+  });
+}
+
+async function loadData(){
+  const app=document.getElementById("app");
+
+  try{
+    const response=await fetch(DATA_URL,{cache:"no-store"});
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const payload=await response.json();
+
+    if(payload.error) throw new Error(payload.error);
+    if(!Array.isArray(payload.athletes)) throw new Error("Format JSON inattendu : athletes absent.");
+
+    ATHLETES=payload.athletes.map(a=>({
+      Fiscode:String(a.Fiscode??""),
+      Fullname:String(a.Fullname??""),
+      Gender:String(a.Gender??""),
+      Discipline:String(a.Discipline??""),
+      Nation:String(a.Nation??""),
+      Fispoints:Number(a.Fispoints),
+      WorldRank:Number(a.WorldRank),
+      Liste_FIS:String(a.Liste_FIS??"")
+    })).filter(a=>
+      ["M","W"].includes(a.Gender) &&
+      ["SL","GS","SG","DH"].includes(a.Discipline) &&
+      Number.isFinite(a.WorldRank) &&
+      a.WorldRank<=100
+    );
+
+    FIS_LIST=String(payload.list||ATHLETES[0]?.Liste_FIS||"");
+    UPDATED=String(payload.updated||"");
+
+    rebuildGroups();
+
+    document.title=`Top 30 / 60 / 100 mondial – Normal List FIS ${FIS_LIST}`;
+    document.getElementById("subtitle").textContent=
+      `Normal List FIS ${FIS_LIST} · 10 nations de référence · Slalom, Géant, Super-G et Descente`+
+      (UPDATED?` · Mise à jour : ${UPDATED}`:"");
+
+    render();
+
+  }catch(error){
+    console.error(error);
+    document.getElementById("subtitle").textContent="Impossible de charger la Normal List FIS.";
+    app.innerHTML=
+      `<div class="status error">Erreur de chargement des données FIS.<br><small>${escapeHtml(error.message)}</small></div>`;
+  }
+}
+
+document.querySelectorAll("button[data-level]").forEach(button=>{
+  button.onclick=()=>{
+    level=Number(button.dataset.level);
+    if(ATHLETES.length) render();
+  };
+});
+
+loadData();
+</script>
+</body>
+</html>
