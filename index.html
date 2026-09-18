@@ -16,6 +16,9 @@
   --fra:#1969d2;
   --men:#244e86;
   --women:#9d234b;
+  --gain:#188038;
+  --loss:#c00000;
+  --stable:#7b8490;
 }
 
 *{
@@ -141,7 +144,7 @@ button.active{
 
 .nation-row{
   display:grid;
-  grid-template-columns:34px 1fr 27px;
+  grid-template-columns:34px 1fr 55px;
   gap:6px;
   align-items:center;
   margin:5px 0;
@@ -199,11 +202,39 @@ button.active{
   min-width:0;
 }
 
+.value{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:5px;
+  white-space:nowrap;
+}
+
 .count{
   font-size:13px;
   font-weight:800;
   text-align:center;
   color:var(--nation,#243b66);
+  min-width:16px;
+}
+
+.delta{
+  font-size:11px;
+  font-weight:800;
+  min-width:24px;
+  text-align:left;
+}
+
+.delta.gain{
+  color:var(--gain);
+}
+
+.delta.loss{
+  color:var(--loss);
+}
+
+.delta.stable{
+  color:var(--stable);
 }
 
 .tip{
@@ -235,6 +266,23 @@ button.active{
   padding-bottom:7px;
   margin-bottom:7px;
   border-bottom:1px solid #ffffff38;
+}
+
+.tip-evolution{
+  margin-top:4px;
+  font-weight:800;
+}
+
+.tip-evolution.gain{
+  color:#7ee2a8;
+}
+
+.tip-evolution.loss{
+  color:#ff9292;
+}
+
+.tip-evolution.stable{
+  color:#cbd5e1;
 }
 
 .athlete{
@@ -281,6 +329,22 @@ button.active{
   height:12px;
   border-radius:3px;
   background:var(--fra);
+}
+
+.evo-legend{
+  font-weight:800;
+}
+
+.evo-legend .plus{
+  color:var(--gain);
+}
+
+.evo-legend .minus{
+  color:var(--loss);
+}
+
+.evo-legend .zero{
+  color:var(--stable);
 }
 
 .note{
@@ -381,6 +445,13 @@ France
 La longueur de la barre représente le nombre d’athlètes de la nation dans le Top 30.
 </span>
 
+<span class="evo-legend">
+Évolution vs Basic List :
+<span class="plus">+ gain</span>
+<span class="minus">− perte</span>
+<span class="zero">0 stable</span>
+</span>
+
 <span>
 Survol : noms, rangs et points.
 </span>
@@ -390,6 +461,7 @@ Survol : noms, rangs et points.
 <div class="note">
 Les mêmes dix nations, dans le même ordre et avec la même couleur,
 sont comparées dans chaque discipline.
+L’évolution indique l’écart du nombre de présences par rapport à la Basic List de début de saison.
 Une même personne peut apparaître dans plusieurs disciplines.
 </div>
 
@@ -410,13 +482,20 @@ const DATA_URL =
 
 /* ============================================================
    CACHE LOCAL
+
+   v3 :
+   nouveau format avec Basic List
    ============================================================ */
 
 const CACHE_KEY =
-"fis_normal_list_top100_v2";
+"fis_normal_list_top100_v3";
 
 
 let ATHLETES = [];
+
+let BASIC = [];
+
+let BASIC_SEASON = null;
 
 let FIS_LIST = "";
 
@@ -482,7 +561,11 @@ const colors = {
 
 
 const groupMap =
-new Map();
+  new Map();
+
+
+const basicMap =
+  new Map();
 
 
 /* ============================================================
@@ -549,23 +632,6 @@ function escapeHtml(
 
 /* ============================================================
    DATE DE MISE A JOUR
-
-   IMPORTANT :
-   Si Apps Script envoie :
-
-   2026-09-18T06:28:00.000Z
-
-   le Z signifie UTC.
-
-   On convertit alors explicitement vers Europe/Paris.
-
-   Le navigateur affichera :
-
-   18/09/2026 à 08:28
-
-   en heure d'été.
-
-   Et le passage hiver sera automatique.
    ============================================================ */
 
 function formatUpdateDate(
@@ -582,16 +648,6 @@ function formatUpdateDate(
   const text =
     String(value).trim();
 
-
-  /* ----------------------------------------------------------
-     CAS 1
-     Timestamp ISO avec fuseau horaire.
-
-     Exemple :
-     2026-09-18T06:28:00.000Z
-
-     C'est ce que le nouveau Code.gs doit envoyer.
-     ---------------------------------------------------------- */
 
   if(
     /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/i
@@ -670,16 +726,6 @@ function formatUpdateDate(
   }
 
 
-  /* ----------------------------------------------------------
-     CAS 2
-     Ancien format sans fuseau.
-
-     Exemple :
-     2026-09-18 08:28:00
-
-     Dans ce cas on conserve l'heure telle quelle.
-     ---------------------------------------------------------- */
-
   const simpleMatch =
     text.match(
       /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::\d{2})?$/
@@ -702,11 +748,6 @@ function formatUpdateDate(
 
   }
 
-
-  /* ----------------------------------------------------------
-     CAS 3
-     Dernière tentative avec Date()
-     ---------------------------------------------------------- */
 
   const date =
     new Date(text);
@@ -784,7 +825,7 @@ function formatUpdateDate(
 
 
 /* ============================================================
-   NORMALISATION
+   NORMALISATION NORMAL LIST
    ============================================================ */
 
 function normalizeAthletes(
@@ -809,42 +850,56 @@ function normalizeAthletes(
 
           Fiscode:
             String(
-              a.Fiscode ?? ""
+              a.fiscode ??
+              a.Fiscode ??
+              ""
             ),
 
           Fullname:
             String(
-              a.Fullname ?? ""
+              a.fullname ??
+              a.Fullname ??
+              ""
             ),
 
           Gender:
             String(
-              a.Gender ?? ""
+              a.gender ??
+              a.Gender ??
+              ""
             ),
 
           Discipline:
             String(
-              a.Discipline ?? ""
+              a.discipline ??
+              a.Discipline ??
+              ""
             ),
 
           Nation:
             String(
-              a.Nation ?? ""
+              a.nation ??
+              a.Nation ??
+              ""
             ),
 
           Fispoints:
             Number(
+              a.points ??
               a.Fispoints
             ),
 
           WorldRank:
             Number(
+              a.rank ??
               a.WorldRank
             ),
 
           Liste_FIS:
             String(
-              a.Liste_FIS ?? ""
+              a.list ??
+              a.Liste_FIS ??
+              ""
             )
 
         };
@@ -888,7 +943,107 @@ function normalizeAthletes(
 
 
 /* ============================================================
-   GROUPES
+   NORMALISATION BASIC LIST
+   ============================================================ */
+
+function normalizeBasic(
+  source
+){
+
+  if(
+    !Array.isArray(source)
+  ){
+
+    return [];
+
+  }
+
+
+  return source
+
+    .map(
+      function(b){
+
+        return {
+
+          Nation:
+            String(
+              b.nation ??
+              b.Nation ??
+              ""
+            ),
+
+          Gender:
+            String(
+              b.gender ??
+              b.Gender ??
+              ""
+            ),
+
+          Discipline:
+            String(
+              b.discipline ??
+              b.Discipline ??
+              ""
+            ),
+
+          Top30:
+            Number(
+              b.top30 ??
+              b.Top30 ??
+              0
+            ),
+
+          Top60:
+            Number(
+              b.top60 ??
+              b.Top60 ??
+              0
+            ),
+
+          Top100:
+            Number(
+              b.top100 ??
+              b.Top100 ??
+              0
+            )
+
+        };
+
+      }
+    )
+
+    .filter(
+      function(b){
+
+        return (
+
+          b.Nation
+
+          &&
+
+          ["M","W"]
+            .includes(
+              b.Gender
+            )
+
+          &&
+
+          ["SL","GS","SG","DH"]
+            .includes(
+              b.Discipline
+            )
+
+        );
+
+      }
+    );
+
+}
+
+
+/* ============================================================
+   GROUPES NORMAL LIST
    ============================================================ */
 
 function rebuildGroups(){
@@ -960,6 +1115,41 @@ function rebuildGroups(){
 }
 
 
+/* ============================================================
+   INDEX BASIC LIST
+   ============================================================ */
+
+function rebuildBasicMap(){
+
+  basicMap.clear();
+
+
+  for(
+    const item
+    of BASIC
+  ){
+
+    basicMap.set(
+
+      key(
+        item.Gender,
+        item.Discipline,
+        item.Nation
+      ),
+
+      item
+
+    );
+
+  }
+
+}
+
+
+/* ============================================================
+   ATHLETES D'UN GROUPE
+   ============================================================ */
+
 function members(
   sex,
   disc,
@@ -984,6 +1174,61 @@ function members(
 
 }
 
+
+/* ============================================================
+   REFERENCE BASIC LIST
+   ============================================================ */
+
+function basicCount(
+  sex,
+  disc,
+  nation,
+  requestedLevel
+){
+
+  const item =
+    basicMap.get(
+      key(
+        sex,
+        disc,
+        nation
+      )
+    );
+
+
+  if(!item){
+
+    return 0;
+
+  }
+
+
+  if(
+    requestedLevel === 30
+  ){
+
+    return item.Top30;
+
+  }
+
+
+  if(
+    requestedLevel === 60
+  ){
+
+    return item.Top60;
+
+  }
+
+
+  return item.Top100;
+
+}
+
+
+/* ============================================================
+   NATIONS / COMPARAISON
+   ============================================================ */
 
 function nationsFor(
   sex,
@@ -1011,18 +1256,95 @@ function nationsFor(
         );
 
 
+      const count =
+        list.length;
+
+
+      const basic =
+        basicCount(
+          sex,
+          disc,
+          nation,
+          level
+        );
+
+
       return {
 
         nation:
           nation,
 
         count:
-          list.length
+          count,
+
+        basic:
+          basic,
+
+        delta:
+          count - basic
 
       };
 
     }
   );
+
+}
+
+
+/* ============================================================
+   AFFICHAGE DE L'ECART
+   ============================================================ */
+
+function deltaText(
+  delta
+){
+
+  if(
+    delta > 0
+  ){
+
+    return "+" + delta;
+
+  }
+
+
+  if(
+    delta < 0
+  ){
+
+    return String(delta);
+
+  }
+
+
+  return "0";
+
+}
+
+
+function deltaClass(
+  delta
+){
+
+  if(
+    delta > 0
+  ){
+
+    return "gain";
+
+  }
+
+
+  if(
+    delta < 0
+  ){
+
+    return "loss";
+
+  }
+
+
+  return "stable";
 
 }
 
@@ -1080,6 +1402,26 @@ function tooltipHtml(
     );
 
 
+  const basic =
+    basicCount(
+      sex,
+      disc,
+      nation,
+      level
+    );
+
+
+  const delta =
+    list.length -
+    basic;
+
+
+  const dClass =
+    deltaClass(
+      delta
+    );
+
+
   let detail = "";
 
 
@@ -1119,7 +1461,7 @@ function tooltipHtml(
 
     detail = `
 
-      <div class="tip-summary">
+      <div>
         Aucun athlète dans ce Top ${level}
       </div>
 
@@ -1144,14 +1486,19 @@ function tooltipHtml(
     <div class="tip-summary">
 
       <strong>
-
+        Normal List :
         ${list.length}
-
-        athlète${list.length>1?"s":""}
-
-        dans le Top ${level}
-
       </strong>
+
+      <br>
+
+      Basic List ${BASIC_SEASON || ""} :
+      ${basic}
+
+      <div class="tip-evolution ${dClass}">
+        Évolution :
+        ${deltaText(delta)}
+      </div>
 
     </div>
 
@@ -1324,6 +1671,12 @@ function render(){
             0;
 
 
+        const dClass =
+          deltaClass(
+            item.delta
+          );
+
+
         html += `
 
           <div
@@ -1367,8 +1720,16 @@ function render(){
             </div>
 
 
-            <div class="count">
-              ${item.count}
+            <div class="value">
+
+              <span class="count">
+                ${item.count}
+              </span>
+
+              <span class="delta ${dClass}">
+                ${deltaText(item.delta)}
+              </span>
+
             </div>
 
           </div>
@@ -1484,10 +1845,18 @@ function render(){
           ""
       }
 
+      ${
+        BASIC.length
+          ?
+          `<span class="badge">
+             Référence : Basic List ${BASIC_SEASON || ""}
+           </span>`
+          :
+          ""
+      }
+
     `;
 
-
-  /* Boutons */
 
   document
     .querySelectorAll(
@@ -1719,6 +2088,18 @@ function loadCache(){
       cachedAthletes;
 
 
+    BASIC =
+      normalizeBasic(
+        payload.basic
+      );
+
+
+    BASIC_SEASON =
+      Number(
+        payload.basicSeason
+      ) || null;
+
+
     FIS_LIST =
       String(
         payload.list ||
@@ -1735,6 +2116,8 @@ function loadCache(){
 
 
     rebuildGroups();
+
+    rebuildBasicMap();
 
     updateSubtitle();
 
@@ -1831,6 +2214,18 @@ function applyPayload(
     newAthletes;
 
 
+  BASIC =
+    normalizeBasic(
+      payload.basic
+    );
+
+
+  BASIC_SEASON =
+    Number(
+      payload.basicSeason
+    ) || null;
+
+
   FIS_LIST =
     String(
       payload.list ||
@@ -1847,6 +2242,8 @@ function applyPayload(
 
 
   rebuildGroups();
+
+  rebuildBasicMap();
 
   updateSubtitle();
 
@@ -1927,6 +2324,20 @@ async function refreshFromServer(
       );
 
 
+    const serverBasicSeason =
+      Number(
+        payload.basicSeason
+      ) || null;
+
+
+    const cacheNeedsBasic =
+      BASIC.length === 0 &&
+      Array.isArray(
+        payload.basic
+      ) &&
+      payload.basic.length > 0;
+
+
     const dataChanged =
 
       !hasCache
@@ -1939,7 +2350,16 @@ async function refreshFromServer(
       ||
 
       serverUpdated !==
-      UPDATED;
+      UPDATED
+
+      ||
+
+      serverBasicSeason !==
+      BASIC_SEASON
+
+      ||
+
+      cacheNeedsBasic;
 
 
     saveCache(
