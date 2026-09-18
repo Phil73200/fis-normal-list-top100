@@ -21,9 +21,7 @@
   --stable:#7b8490;
 }
 
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box;}
 
 body{
   margin:0;
@@ -225,17 +223,9 @@ button.active{
   text-align:left;
 }
 
-.delta.gain{
-  color:var(--gain);
-}
-
-.delta.loss{
-  color:var(--loss);
-}
-
-.delta.stable{
-  color:var(--stable);
-}
+.delta.gain{color:var(--gain);}
+.delta.loss{color:var(--loss);}
+.delta.stable{color:var(--stable);}
 
 .tip{
   display:none;
@@ -273,17 +263,9 @@ button.active{
   font-weight:800;
 }
 
-.tip-evolution.gain{
-  color:#7ee2a8;
-}
-
-.tip-evolution.loss{
-  color:#ff9292;
-}
-
-.tip-evolution.stable{
-  color:#cbd5e1;
-}
+.tip-evolution.gain{color:#7ee2a8;}
+.tip-evolution.loss{color:#ff9292;}
+.tip-evolution.stable{color:#cbd5e1;}
 
 .athlete{
   display:grid;
@@ -335,17 +317,9 @@ button.active{
   font-weight:800;
 }
 
-.evo-legend .plus{
-  color:var(--gain);
-}
-
-.evo-legend .minus{
-  color:var(--loss);
-}
-
-.evo-legend .zero{
-  color:var(--stable);
-}
+.evo-legend .plus{color:var(--gain);}
+.evo-legend .minus{color:var(--loss);}
+.evo-legend .zero{color:var(--stable);}
 
 .note{
   text-align:center;
@@ -366,15 +340,12 @@ button.active{
 }
 
 @media(max-width:1220px){
-
   .disc-grid{
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
-
 }
 
 @media(max-width:680px){
-
   main{
     padding:15px;
   }
@@ -390,7 +361,6 @@ button.active{
   .tip{
     max-width:calc(100vw - 16px);
   }
-
 }
 
 </style>
@@ -411,27 +381,15 @@ Chargement de la Normal List FIS…
 <div class="summary" id="summary"></div>
 
 <div class="controls">
-
-<button data-level="30" class="active">
-TOP 30
-</button>
-
-<button data-level="60">
-TOP 60
-</button>
-
-<button data-level="100">
-TOP 100
-</button>
-
+  <button data-level="30" class="active">TOP 30</button>
+  <button data-level="60">TOP 60</button>
+  <button data-level="100">TOP 100</button>
 </div>
 
 <div id="app">
-
-<div class="status">
-Chargement initial des données FIS…
-</div>
-
+  <div class="status">
+    Chargement initial des données FIS…
+  </div>
 </div>
 
 <div class="legend">
@@ -469,7 +427,6 @@ Une même personne peut apparaître dans plusieurs disciplines.
 
 <div class="tip" id="tip"></div>
 
-
 <script>
 
 /* ============================================================
@@ -483,24 +440,18 @@ const DATA_URL =
 /* ============================================================
    CACHE LOCAL
 
-   v3 :
-   nouveau format avec Basic List
+   v4 = nouvelle version avec Basic List validée
    ============================================================ */
 
 const CACHE_KEY =
-"fis_normal_list_top100_v3";
+"fis_normal_list_top100_v4";
 
 
 let ATHLETES = [];
-
 let BASIC = [];
-
 let BASIC_SEASON = null;
-
 let FIS_LIST = "";
-
 let UPDATED = "";
-
 let level = 30;
 
 
@@ -523,421 +474,190 @@ const selectedNations = [
 
 
 const disciplines = [
-
   ["SL","Slalom"],
-
   ["GS","Géant"],
-
   ["SG","Super-G"],
-
   ["DH","Descente"]
-
 ];
 
 
 const colors = {
-
   FRA:"#1969d2",
-
   NOR:"#7d7d7d",
-
   SUI:"#d72d37",
-
   AUT:"#2d2d2d",
-
   ITA:"#239146",
-
   USA:"#7656b5",
-
   GER:"#c99200",
-
   CAN:"#981f3d",
-
   SWE:"#d5ad00",
-
   SLO:"#009c9c"
-
 };
 
 
-const groupMap =
-  new Map();
-
-
-const basicMap =
-  new Map();
+const groupMap = new Map();
+const basicMap = new Map();
 
 
 /* ============================================================
    OUTILS
    ============================================================ */
 
-function key(
-  sex,
-  disc,
-  nation
-){
+function key(sex,disc,nation){
 
   return (
-    sex +
+    String(sex).trim().toUpperCase() +
     "|" +
-    disc +
+    String(disc).trim().toUpperCase() +
     "|" +
-    nation
+    String(nation).trim().toUpperCase()
   );
 
 }
 
 
-function colorFor(
-  nation
-){
+function colorFor(nation){
 
-  return (
-    colors[nation] ||
-    "#64748b"
-  );
+  return colors[nation] || "#64748b";
 
 }
 
 
-function escapeHtml(
-  value
-){
+function escapeHtml(value){
 
-  return String(value)
-    .replace(
-      /[&<>"']/g,
-      function(ch){
+  return String(value).replace(
+    /[&<>"']/g,
+    function(ch){
 
-        return {
-
-          "&":"&amp;",
-
-          "<":"&lt;",
-
-          ">":"&gt;",
-
-          '"':"&quot;",
-
-          "'":"&#039;"
-
-        }[ch];
-
-      }
-    );
-
-}
-
-
-/* ============================================================
-   DATE DE MISE A JOUR
-   ============================================================ */
-
-function formatUpdateDate(
-  value
-){
-
-  if(!value){
-
-    return "";
-
-  }
-
-
-  const text =
-    String(value).trim();
-
-
-  if(
-    /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/i
-      .test(text)
-  ){
-
-    const date =
-      new Date(text);
-
-
-    if(
-      !Number.isNaN(
-        date.getTime()
-      )
-    ){
-
-      const parts =
-        new Intl.DateTimeFormat(
-          "fr-FR",
-          {
-
-            timeZone:
-              "Europe/Paris",
-
-            day:
-              "2-digit",
-
-            month:
-              "2-digit",
-
-            year:
-              "numeric",
-
-            hour:
-              "2-digit",
-
-            minute:
-              "2-digit",
-
-            hour12:
-              false
-
-          }
-        )
-        .formatToParts(date);
-
-
-      const values = {};
-
-
-      for(
-        const part
-        of parts
-      ){
-
-        values[part.type] =
-          part.value;
-
-      }
-
-
-      return (
-        values.day +
-        "/" +
-        values.month +
-        "/" +
-        values.year +
-        " à " +
-        values.hour +
-        ":" +
-        values.minute
-      );
+      return {
+        "&":"&amp;",
+        "<":"&lt;",
+        ">":"&gt;",
+        '"':"&quot;",
+        "'":"&#039;"
+      }[ch];
 
     }
-
-  }
-
-
-  const simpleMatch =
-    text.match(
-      /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::\d{2})?$/
-    );
-
-
-  if(simpleMatch){
-
-    return (
-      simpleMatch[3] +
-      "/" +
-      simpleMatch[2] +
-      "/" +
-      simpleMatch[1] +
-      " à " +
-      simpleMatch[4] +
-      ":" +
-      simpleMatch[5]
-    );
-
-  }
-
-
-  const date =
-    new Date(text);
-
-
-  if(
-    Number.isNaN(
-      date.getTime()
-    )
-  ){
-
-    return text;
-
-  }
-
-
-  const parts =
-    new Intl.DateTimeFormat(
-      "fr-FR",
-      {
-
-        timeZone:
-          "Europe/Paris",
-
-        day:
-          "2-digit",
-
-        month:
-          "2-digit",
-
-        year:
-          "numeric",
-
-        hour:
-          "2-digit",
-
-        minute:
-          "2-digit",
-
-        hour12:
-          false
-
-      }
-    )
-    .formatToParts(date);
-
-
-  const values = {};
-
-
-  for(
-    const part
-    of parts
-  ){
-
-    values[part.type] =
-      part.value;
-
-  }
-
-
-  return (
-    values.day +
-    "/" +
-    values.month +
-    "/" +
-    values.year +
-    " à " +
-    values.hour +
-    ":" +
-    values.minute
   );
 
 }
 
 
 /* ============================================================
-   NORMALISATION NORMAL LIST
+   DATE
    ============================================================ */
 
-function normalizeAthletes(
-  source
-){
+function formatUpdateDate(value){
 
-  if(
-    !Array.isArray(source)
-  ){
-
-    return [];
-
+  if(!value){
+    return "";
   }
 
+  const date = new Date(value);
+
+  if(Number.isNaN(date.getTime())){
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat(
+    "fr-FR",
+    {
+      timeZone:"Europe/Paris",
+      day:"2-digit",
+      month:"2-digit",
+      year:"numeric",
+      hour:"2-digit",
+      minute:"2-digit",
+      hour12:false
+    }
+  ).format(date).replace(",", " à");
+
+}
+
+
+/* ============================================================
+   NORMALISATION ATHLETES
+   ============================================================ */
+
+function normalizeAthletes(source){
+
+  if(!Array.isArray(source)){
+    return [];
+  }
 
   return source
+    .map(function(a){
 
-    .map(
-      function(a){
+      return {
 
-        return {
+        Fiscode:
+          String(
+            a.Fiscode ??
+            a.fiscode ??
+            ""
+          ),
 
-          Fiscode:
-            String(
-              a.fiscode ??
-              a.Fiscode ??
-              ""
-            ),
+        Fullname:
+          String(
+            a.Fullname ??
+            a.fullname ??
+            ""
+          ).trim(),
 
-          Fullname:
-            String(
-              a.fullname ??
-              a.Fullname ??
-              ""
-            ),
+        Gender:
+          String(
+            a.Gender ??
+            a.gender ??
+            ""
+          ).trim().toUpperCase(),
 
-          Gender:
-            String(
-              a.gender ??
-              a.Gender ??
-              ""
-            ),
+        Discipline:
+          String(
+            a.Discipline ??
+            a.discipline ??
+            ""
+          ).trim().toUpperCase(),
 
-          Discipline:
-            String(
-              a.discipline ??
-              a.Discipline ??
-              ""
-            ),
+        Nation:
+          String(
+            a.Nation ??
+            a.nation ??
+            ""
+          ).trim().toUpperCase(),
 
-          Nation:
-            String(
-              a.nation ??
-              a.Nation ??
-              ""
-            ),
+        Fispoints:
+          Number(
+            a.Fispoints ??
+            a.points
+          ),
 
-          Fispoints:
-            Number(
-              a.points ??
-              a.Fispoints
-            ),
+        WorldRank:
+          Number(
+            a.WorldRank ??
+            a.rank
+          ),
 
-          WorldRank:
-            Number(
-              a.rank ??
-              a.WorldRank
-            ),
+        Liste_FIS:
+          String(
+            a.Liste_FIS ??
+            a.list ??
+            ""
+          ).trim()
 
-          Liste_FIS:
-            String(
-              a.list ??
-              a.Liste_FIS ??
-              ""
-            )
+      };
 
-        };
+    })
 
-      }
-    )
+    .filter(function(a){
 
-    .filter(
-      function(a){
+      return (
+        ["M","W"].includes(a.Gender) &&
+        ["SL","GS","SG","DH"].includes(a.Discipline) &&
+        Number.isFinite(a.WorldRank) &&
+        a.WorldRank <= 100
+      );
 
-        return (
-
-          ["M","W"]
-            .includes(
-              a.Gender
-            )
-
-          &&
-
-          ["SL","GS","SG","DH"]
-            .includes(
-              a.Discipline
-            )
-
-          &&
-
-          Number.isFinite(
-            a.WorldRank
-          )
-
-          &&
-
-          a.WorldRank <= 100
-
-        );
-
-      }
-    );
+    });
 
 }
 
@@ -946,98 +666,72 @@ function normalizeAthletes(
    NORMALISATION BASIC LIST
    ============================================================ */
 
-function normalizeBasic(
-  source
-){
+function normalizeBasic(source){
 
-  if(
-    !Array.isArray(source)
-  ){
-
+  if(!Array.isArray(source)){
     return [];
-
   }
 
-
   return source
+    .map(function(b){
 
-    .map(
-      function(b){
+      return {
 
-        return {
+        Nation:
+          String(
+            b.Nation ??
+            b.nation ??
+            ""
+          ).trim().toUpperCase(),
 
-          Nation:
-            String(
-              b.nation ??
-              b.Nation ??
-              ""
-            ),
+        Gender:
+          String(
+            b.Gender ??
+            b.gender ??
+            ""
+          ).trim().toUpperCase(),
 
-          Gender:
-            String(
-              b.gender ??
-              b.Gender ??
-              ""
-            ),
+        Discipline:
+          String(
+            b.Discipline ??
+            b.discipline ??
+            ""
+          ).trim().toUpperCase(),
 
-          Discipline:
-            String(
-              b.discipline ??
-              b.Discipline ??
-              ""
-            ),
+        Top30:
+          Number(
+            b.Top30 ??
+            b.top30 ??
+            0
+          ),
 
-          Top30:
-            Number(
-              b.top30 ??
-              b.Top30 ??
-              0
-            ),
+        Top60:
+          Number(
+            b.Top60 ??
+            b.top60 ??
+            0
+          ),
 
-          Top60:
-            Number(
-              b.top60 ??
-              b.Top60 ??
-              0
-            ),
+        Top100:
+          Number(
+            b.Top100 ??
+            b.top100 ??
+            0
+          )
 
-          Top100:
-            Number(
-              b.top100 ??
-              b.Top100 ??
-              0
-            )
+      };
 
-        };
+    })
 
-      }
-    )
+    .filter(function(b){
 
-    .filter(
-      function(b){
+      return (
+        b.Nation &&
+        ["M","W"].includes(b.Gender) &&
+        ["SL","GS","SG","DH"].includes(b.Discipline)
+      );
 
-        return (
-
-          b.Nation
-
-          &&
-
-          ["M","W"]
-            .includes(
-              b.Gender
-            )
-
-          &&
-
-          ["SL","GS","SG","DH"]
-            .includes(
-              b.Discipline
-            )
-
-        );
-
-      }
-    );
+    });
 
 }
 
@@ -1050,11 +744,7 @@ function rebuildGroups(){
 
   groupMap.clear();
 
-
-  for(
-    const athlete
-    of ATHLETES
-  ){
+  for(const athlete of ATHLETES){
 
     const k =
       key(
@@ -1063,52 +753,25 @@ function rebuildGroups(){
         athlete.Nation
       );
 
-
-    if(
-      !groupMap.has(k)
-    ){
-
-      groupMap.set(
-        k,
-        []
-      );
-
+    if(!groupMap.has(k)){
+      groupMap.set(k,[]);
     }
 
-
-    groupMap
-      .get(k)
-      .push(
-        athlete
-      );
+    groupMap.get(k).push(athlete);
 
   }
 
 
-  for(
-    const list
-    of groupMap.values()
-  ){
+  for(const list of groupMap.values()){
 
-    list.sort(
-      function(a,b){
+    list.sort(function(a,b){
 
-        return (
+      return (
+        (a.WorldRank - b.WorldRank) ||
+        a.Fullname.localeCompare(b.Fullname,"fr")
+      );
 
-          a.WorldRank -
-          b.WorldRank
-
-        )
-
-        ||
-
-        a.Fullname.localeCompare(
-          b.Fullname,
-          "fr"
-        );
-
-      }
-    );
+    });
 
   }
 
@@ -1116,29 +779,22 @@ function rebuildGroups(){
 
 
 /* ============================================================
-   INDEX BASIC LIST
+   INDEX BASIC
    ============================================================ */
 
 function rebuildBasicMap(){
 
   basicMap.clear();
 
-
-  for(
-    const item
-    of BASIC
-  ){
+  for(const item of BASIC){
 
     basicMap.set(
-
       key(
         item.Gender,
         item.Discipline,
         item.Nation
       ),
-
       item
-
     );
 
   }
@@ -1147,36 +803,22 @@ function rebuildBasicMap(){
 
 
 /* ============================================================
-   ATHLETES D'UN GROUPE
+   MEMBRES
    ============================================================ */
 
-function members(
-  sex,
-  disc,
-  nation
-){
+function members(sex,disc,nation){
 
   return (
-
     groupMap.get(
-      key(
-        sex,
-        disc,
-        nation
-      )
-    )
-
-    ||
-
-    []
-
+      key(sex,disc,nation)
+    ) || []
   );
 
 }
 
 
 /* ============================================================
-   REFERENCE BASIC LIST
+   BASIC COUNT
    ============================================================ */
 
 function basicCount(
@@ -1197,43 +839,30 @@ function basicCount(
 
 
   if(!item){
-
     return 0;
-
   }
 
 
-  if(
-    requestedLevel === 30
-  ){
-
-    return item.Top30;
-
+  if(requestedLevel === 30){
+    return Number(item.Top30) || 0;
   }
 
 
-  if(
-    requestedLevel === 60
-  ){
-
-    return item.Top60;
-
+  if(requestedLevel === 60){
+    return Number(item.Top60) || 0;
   }
 
 
-  return item.Top100;
+  return Number(item.Top100) || 0;
 
 }
 
 
 /* ============================================================
-   NATIONS / COMPARAISON
+   NATIONS
    ============================================================ */
 
-function nationsFor(
-  sex,
-  disc
-){
+function nationsFor(sex,disc){
 
   return selectedNations.map(
     function(nation){
@@ -1246,12 +875,7 @@ function nationsFor(
         )
         .filter(
           function(a){
-
-            return (
-              a.WorldRank <=
-              level
-            );
-
+            return a.WorldRank <= level;
           }
         );
 
@@ -1270,19 +894,10 @@ function nationsFor(
 
 
       return {
-
-        nation:
-          nation,
-
-        count:
-          count,
-
-        basic:
-          basic,
-
-        delta:
-          count - basic
-
+        nation:nation,
+        count:count,
+        basic:basic,
+        delta:count-basic
       };
 
     }
@@ -1292,57 +907,33 @@ function nationsFor(
 
 
 /* ============================================================
-   AFFICHAGE DE L'ECART
+   DELTA
    ============================================================ */
 
-function deltaText(
-  delta
-){
+function deltaText(delta){
 
-  if(
-    delta > 0
-  ){
-
+  if(delta > 0){
     return "+" + delta;
-
   }
 
-
-  if(
-    delta < 0
-  ){
-
+  if(delta < 0){
     return String(delta);
-
   }
-
 
   return "0";
 
 }
 
 
-function deltaClass(
-  delta
-){
+function deltaClass(delta){
 
-  if(
-    delta > 0
-  ){
-
+  if(delta > 0){
     return "gain";
-
   }
 
-
-  if(
-    delta < 0
-  ){
-
+  if(delta < 0){
     return "loss";
-
   }
-
 
   return "stable";
 
@@ -1368,12 +959,7 @@ function tooltipHtml(
   const discipline =
     disciplines.find(
       function(d){
-
-        return (
-          d[0] ===
-          disc
-        );
-
+        return d[0] === disc;
       }
     );
 
@@ -1392,12 +978,7 @@ function tooltipHtml(
     )
     .filter(
       function(a){
-
-        return (
-          a.WorldRank <=
-          level
-        );
-
+        return a.WorldRank <= level;
       }
     );
 
@@ -1412,22 +993,17 @@ function tooltipHtml(
 
 
   const delta =
-    list.length -
-    basic;
+    list.length - basic;
 
 
   const dClass =
-    deltaClass(
-      delta
-    );
+    deltaClass(delta);
 
 
   let detail = "";
 
 
-  if(
-    list.length
-  ){
+  if(list.length){
 
     detail =
       list.map(
@@ -1454,8 +1030,7 @@ function tooltipHtml(
           `;
 
         }
-      )
-      .join("");
+      ).join("");
 
   }else{
 
@@ -1482,7 +1057,6 @@ function tooltipHtml(
 
     </div>
 
-
     <div class="tip-summary">
 
       <strong>
@@ -1501,7 +1075,6 @@ function tooltipHtml(
       </div>
 
     </div>
-
 
     ${detail}
 
@@ -1523,14 +1096,10 @@ function updateSubtitle(){
 
 
   const formattedDate =
-    formatUpdateDate(
-      UPDATED
-    );
+    formatUpdateDate(UPDATED);
 
 
-  if(
-    formattedDate
-  ){
+  if(formattedDate){
 
     text +=
       ` · Mise à jour : ${formattedDate}`;
@@ -1539,9 +1108,7 @@ function updateSubtitle(){
 
 
   document
-    .getElementById(
-      "subtitle"
-    )
+    .getElementById("subtitle")
     .textContent =
       text;
 
@@ -1559,33 +1126,22 @@ function updateSubtitle(){
 function render(){
 
   const app =
-    document.getElementById(
-      "app"
-    );
+    document.getElementById("app");
 
 
   app.innerHTML = "";
 
 
   for(
-    const [
-      sex,
-      label,
-      cls
-    ]
+    const [sex,label,cls]
     of [
-
       ["M","HOMMES",""],
-
       ["W","DAMES","w"]
-
     ]
   ){
 
     const section =
-      document.createElement(
-        "section"
-      );
+      document.createElement("section");
 
 
     section.className =
@@ -1593,22 +1149,16 @@ function render(){
 
 
     section.innerHTML =
-
       `<h2>${label}</h2>
        <div class="disc-grid"></div>`;
 
 
     const grid =
-      section.querySelector(
-        ".disc-grid"
-      );
+      section.querySelector(".disc-grid");
 
 
     for(
-      const [
-        disc,
-        name
-      ]
+      const [disc,name]
       of disciplines
     ){
 
@@ -1624,18 +1174,14 @@ function render(){
           1,
           ...nations.map(
             function(n){
-
               return n.count;
-
             }
           )
         );
 
 
       const card =
-        document.createElement(
-          "article"
-        );
+        document.createElement("article");
 
 
       card.className =
@@ -1653,19 +1199,14 @@ function render(){
          </div>`;
 
 
-      for(
-        const item
-        of nations
-      ){
+      for(const item of nations){
 
         const width =
           item.count
             ?
             Math.max(
               9,
-              item.count /
-              max *
-              100
+              item.count / max * 100
             )
             :
             0;
@@ -1692,9 +1233,7 @@ function render(){
             "
 
             data-sex="${sex}"
-
             data-disc="${disc}"
-
             data-nation="${item.nation}"
 
           >
@@ -1702,7 +1241,6 @@ function render(){
             <div class="nation">
               ${item.nation}
             </div>
-
 
             <div class="track">
 
@@ -1718,7 +1256,6 @@ function render(){
               ></div>
 
             </div>
-
 
             <div class="value">
 
@@ -1764,12 +1301,7 @@ function render(){
   const current =
     ATHLETES.filter(
       function(a){
-
-        return (
-          a.WorldRank <=
-          level
-        );
-
+        return a.WorldRank <= level;
       }
     );
 
@@ -1777,12 +1309,7 @@ function render(){
   const fra =
     current.filter(
       function(a){
-
-        return (
-          a.Nation ===
-          "FRA"
-        );
-
+        return a.Nation === "FRA";
       }
     );
 
@@ -1794,12 +1321,7 @@ function render(){
   const fraMen =
     fra.filter(
       function(a){
-
-        return (
-          a.Gender ===
-          "M"
-        );
-
+        return a.Gender === "M";
       }
     ).length;
 
@@ -1807,20 +1329,13 @@ function render(){
   const fraWomen =
     fra.filter(
       function(a){
-
-        return (
-          a.Gender ===
-          "W"
-        );
-
+        return a.Gender === "W";
       }
     ).length;
 
 
   document
-    .getElementById(
-      "summary"
-    )
+    .getElementById("summary")
     .innerHTML = `
 
       <span class="badge">
@@ -1866,15 +1381,8 @@ function render(){
       function(button){
 
         button.classList.toggle(
-
           "active",
-
-          Number(
-            button.dataset.level
-          )
-          ===
-          level
-
+          Number(button.dataset.level) === level
         );
 
       }
@@ -1882,11 +1390,8 @@ function render(){
 
 
   document
-    .getElementById(
-      "legendText"
-    )
+    .getElementById("legendText")
     .textContent =
-
       `La longueur de la barre représente le nombre d’athlètes de la nation dans le Top ${level}.`;
 
 
@@ -1899,24 +1404,18 @@ function render(){
    POSITION INFOBULLE
    ============================================================ */
 
-function positionTip(
-  tip,
-  e
-){
+function positionTip(tip,e){
 
   const gap = 14;
-
   const margin = 8;
 
 
   let left =
-    e.clientX +
-    gap;
+    e.clientX + gap;
 
 
   let top =
-    e.clientY +
-    gap;
+    e.clientY + gap;
 
 
   const rect =
@@ -1924,10 +1423,8 @@ function positionTip(
 
 
   if(
-    left +
-    rect.width >
-    window.innerWidth -
-    margin
+    left + rect.width >
+    window.innerWidth - margin
   ){
 
     left =
@@ -1939,10 +1436,8 @@ function positionTip(
 
 
   if(
-    top +
-    rect.height >
-    window.innerHeight -
-    margin
+    top + rect.height >
+    window.innerHeight - margin
   ){
 
     top =
@@ -1957,16 +1452,14 @@ function positionTip(
     Math.max(
       margin,
       left
-    ) +
-    "px";
+    ) + "px";
 
 
   tip.style.top =
     Math.max(
       margin,
       top
-    ) +
-    "px";
+    ) + "px";
 
 }
 
@@ -1978,18 +1471,13 @@ function positionTip(
 function bindTips(){
 
   const tip =
-    document.getElementById(
-      "tip"
-    );
+    document.getElementById("tip");
 
 
   document
-    .querySelectorAll(
-      ".nation-row"
-    )
+    .querySelectorAll(".nation-row")
     .forEach(
       function(row){
-
 
         row.onmousemove =
           function(e){
@@ -2029,7 +1517,7 @@ function bindTips(){
 
 
 /* ============================================================
-   CACHE
+   CACHE V4
    ============================================================ */
 
 function loadCache(){
@@ -2042,26 +1530,18 @@ function loadCache(){
       );
 
 
-    if(
-      !stored
-    ){
-
+    if(!stored){
       return false;
-
     }
 
 
     const payload =
-      JSON.parse(
-        stored
-      );
+      JSON.parse(stored);
 
 
     if(
       !payload ||
-      !Array.isArray(
-        payload.athletes
-      )
+      !Array.isArray(payload.athletes)
     ){
 
       return false;
@@ -2075,12 +1555,8 @@ function loadCache(){
       );
 
 
-    if(
-      !cachedAthletes.length
-    ){
-
+    if(!cachedAthletes.length){
       return false;
-
     }
 
 
@@ -2116,11 +1592,8 @@ function loadCache(){
 
 
     rebuildGroups();
-
     rebuildBasicMap();
-
     updateSubtitle();
-
     render();
 
 
@@ -2130,7 +1603,7 @@ function loadCache(){
   }catch(error){
 
     console.warn(
-      "Cache FIS inutilisable",
+      "Cache FIS v4 inutilisable",
       error
     );
 
@@ -2146,17 +1619,13 @@ function loadCache(){
    SAUVEGARDE CACHE
    ============================================================ */
 
-function saveCache(
-  payload
-){
+function saveCache(payload){
 
   try{
 
     localStorage.setItem(
       CACHE_KEY,
-      JSON.stringify(
-        payload
-      )
+      JSON.stringify(payload)
     );
 
   }catch(error){
@@ -2175,15 +1644,11 @@ function saveCache(
    APPLICATION DU JSON
    ============================================================ */
 
-function applyPayload(
-  payload
-){
+function applyPayload(payload){
 
   if(
     !payload ||
-    !Array.isArray(
-      payload.athletes
-    )
+    !Array.isArray(payload.athletes)
   ){
 
     throw new Error(
@@ -2199,12 +1664,25 @@ function applyPayload(
     );
 
 
-  if(
-    !newAthletes.length
-  ){
+  if(!newAthletes.length){
 
     throw new Error(
       "Aucune donnée athlète valide."
+    );
+
+  }
+
+
+  const newBasic =
+    normalizeBasic(
+      payload.basic
+    );
+
+
+  if(!newBasic.length){
+
+    throw new Error(
+      "Basic List absente du JSON."
     );
 
   }
@@ -2215,9 +1693,7 @@ function applyPayload(
 
 
   BASIC =
-    normalizeBasic(
-      payload.basic
-    );
+    newBasic;
 
 
   BASIC_SEASON =
@@ -2242,11 +1718,8 @@ function applyPayload(
 
 
   rebuildGroups();
-
   rebuildBasicMap();
-
   updateSubtitle();
-
   render();
 
 }
@@ -2254,26 +1727,39 @@ function applyPayload(
 
 /* ============================================================
    SERVEUR
+
+   IMPORTANT :
+   Dès qu'une réponse valide arrive,
+   elle remplace TOUJOURS le cache affiché.
    ============================================================ */
 
-async function refreshFromServer(
-  hasCache
-){
+async function refreshFromServer(hasCache){
 
   try{
 
+    const separator =
+      DATA_URL.includes("?")
+        ? "&"
+        : "?";
+
+
+    const url =
+      DATA_URL +
+      separator +
+      "_=" +
+      Date.now();
+
+
     const response =
       await fetch(
-        DATA_URL,
+        url,
         {
           cache:"no-store"
         }
       );
 
 
-    if(
-      !response.ok
-    ){
+    if(!response.ok){
 
       throw new Error(
         `HTTP ${response.status}`
@@ -2286,9 +1772,7 @@ async function refreshFromServer(
       await response.json();
 
 
-    if(
-      payload.error
-    ){
+    if(payload.error){
 
       throw new Error(
         payload.error
@@ -2298,9 +1782,7 @@ async function refreshFromServer(
 
 
     if(
-      !Array.isArray(
-        payload.athletes
-      )
+      !Array.isArray(payload.athletes)
     ){
 
       throw new Error(
@@ -2310,72 +1792,35 @@ async function refreshFromServer(
     }
 
 
-    const serverList =
-      String(
-        payload.list ||
-        ""
+    if(
+      !Array.isArray(payload.basic) ||
+      payload.basic.length === 0
+    ){
+
+      throw new Error(
+        "Le Web App ne renvoie aucune donnée Basic List."
       );
 
-
-    const serverUpdated =
-      String(
-        payload.updated ||
-        ""
-      );
+    }
 
 
-    const serverBasicSeason =
-      Number(
-        payload.basicSeason
-      ) || null;
+    /*
+     * On applique TOUJOURS le JSON serveur.
+     * Plus aucun test de comparaison avec l'ancien cache.
+     */
 
-
-    const cacheNeedsBasic =
-      BASIC.length === 0 &&
-      Array.isArray(
-        payload.basic
-      ) &&
-      payload.basic.length > 0;
-
-
-    const dataChanged =
-
-      !hasCache
-
-      ||
-
-      serverList !==
-      FIS_LIST
-
-      ||
-
-      serverUpdated !==
-      UPDATED
-
-      ||
-
-      serverBasicSeason !==
-      BASIC_SEASON
-
-      ||
-
-      cacheNeedsBasic;
-
-
-    saveCache(
+    applyPayload(
       payload
     );
 
 
-    if(
-      dataChanged
-    ){
+    /*
+     * Puis seulement on enregistre le nouveau cache.
+     */
 
-      applyPayload(
-        payload
-      );
-
-    }
+    saveCache(
+      payload
+    );
 
 
   }catch(error){
@@ -2386,35 +1831,26 @@ async function refreshFromServer(
     );
 
 
-    if(
-      hasCache
-    ){
-
+    if(hasCache){
       return;
-
     }
 
 
     document
-      .getElementById(
-        "subtitle"
-      )
+      .getElementById("subtitle")
       .textContent =
-
-        "Impossible de charger la Normal List FIS.";
+        "Impossible de charger les données FIS.";
 
 
     document
-      .getElementById(
-        "app"
-      )
+      .getElementById("app")
       .innerHTML = `
 
         <div class="status error">
 
           Erreur de chargement des données FIS.
 
-          <br>
+          <br><br>
 
           <small>
             ${escapeHtml(error.message)}
@@ -2449,12 +1885,8 @@ document
             );
 
 
-          if(
-            ATHLETES.length
-          ){
-
+          if(ATHLETES.length){
             render();
-
           }
 
         };
@@ -2471,23 +1903,20 @@ const hasCache =
   loadCache();
 
 
-if(
-  !hasCache
-){
+if(!hasCache){
 
   document
-    .getElementById(
-      "subtitle"
-    )
+    .getElementById("subtitle")
     .textContent =
-
-      "Premier chargement de la Normal List FIS…";
+      "Chargement de la Normal List et de la Basic List FIS…";
 
 }
 
 
-/* Le cache est affiché immédiatement.
-   Ensuite seulement on vérifie le Web App. */
+/*
+ * Affichage éventuel du cache,
+ * puis récupération systématique du JSON actuel.
+ */
 
 refreshFromServer(
   hasCache
