@@ -69,7 +69,7 @@ h1{
   display:flex;
   gap:10px;
   justify-content:center;
-  margin:4px 0 18px;
+  margin:4px 0 10px;
 }
 
 button{
@@ -87,6 +87,48 @@ button.active{
   background:var(--ink);
   color:#fff;
   border-color:var(--ink);
+}
+
+/* ============================================================
+   LEGENDE EVOLUTION
+   ============================================================ */
+
+.evolution-key{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:8px 16px;
+  flex-wrap:wrap;
+  margin:0 0 18px;
+  color:#596779;
+  font-size:12px;
+}
+
+.evolution-key-title{
+  font-weight:700;
+  color:#44546a;
+}
+
+.evolution-example{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+
+.evolution-example strong{
+  font-size:13px;
+}
+
+.evolution-example.gain strong{
+  color:var(--gain);
+}
+
+.evolution-example.loss strong{
+  color:var(--loss);
+}
+
+.evolution-example.stable strong{
+  color:var(--stable);
 }
 
 .sex{
@@ -361,6 +403,10 @@ button.active{
   .tip{
     max-width:calc(100vw - 16px);
   }
+
+  .evolution-key{
+    gap:6px 12px;
+  }
 }
 
 </style>
@@ -386,6 +432,25 @@ Chargement de la Normal List FIS…
   <button data-level="100">TOP 100</button>
 </div>
 
+<!-- LEGENDE AJOUTEE -->
+<div class="evolution-key">
+  <span class="evolution-key-title">
+    Évolution depuis la Basic List 2027 :
+  </span>
+
+  <span class="evolution-example gain">
+    <strong>+1</strong> = 1 athlète de plus
+  </span>
+
+  <span class="evolution-example loss">
+    <strong>−1</strong> = 1 athlète de moins
+  </span>
+
+  <span class="evolution-example stable">
+    <strong>0</strong> = stable
+  </span>
+</div>
+
 <div id="app">
   <div class="status">
     Chargement initial des données FIS…
@@ -401,13 +466,6 @@ France
 
 <span id="legendText">
 La longueur de la barre représente le nombre d’athlètes de la nation dans le Top 30.
-</span>
-
-<span class="evo-legend">
-Évolution vs Basic List :
-<span class="plus">+ gain</span>
-<span class="minus">− perte</span>
-<span class="zero">0 stable</span>
 </span>
 
 <span>
@@ -439,8 +497,6 @@ const DATA_URL =
 
 /* ============================================================
    CACHE LOCAL
-
-   v4 = nouvelle version avec Basic List validée
    ============================================================ */
 
 const CACHE_KEY =
@@ -1294,10 +1350,6 @@ function render(){
   }
 
 
-  /* ==========================================================
-     COMPTEURS FRANCE
-     ========================================================== */
-
   const current =
     ATHLETES.filter(
       function(a){
@@ -1727,10 +1779,6 @@ function applyPayload(payload){
 
 /* ============================================================
    SERVEUR
-
-   IMPORTANT :
-   Dès qu'une réponse valide arrive,
-   elle remplace TOUJOURS le cache affiché.
    ============================================================ */
 
 async function refreshFromServer(hasCache){
@@ -1804,19 +1852,10 @@ async function refreshFromServer(hasCache){
     }
 
 
-    /*
-     * On applique TOUJOURS le JSON serveur.
-     * Plus aucun test de comparaison avec l'ancien cache.
-     */
-
     applyPayload(
       payload
     );
 
-
-    /*
-     * Puis seulement on enregistre le nouveau cache.
-     */
 
     saveCache(
       payload
@@ -1912,11 +1951,6 @@ if(!hasCache){
 
 }
 
-
-/*
- * Affichage éventuel du cache,
- * puis récupération systématique du JSON actuel.
- */
 
 refreshFromServer(
   hasCache
