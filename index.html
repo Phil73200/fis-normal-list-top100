@@ -459,7 +459,7 @@ button.active{
     <div class="loading-spinner" aria-hidden="true"></div>
     <div class="loading-title">Chargement des données FIS…</div>
     <div class="loading-text">
-      Le premier affichage peut prendre <strong>jusqu’à 30 secondes</strong>.<br>
+      Le premier affichage peut prendre <strong>plusieurs minutes</strong>.<br>
       Merci de patienter.
     </div>
   </div>
@@ -1618,6 +1618,16 @@ function bindTips(){
 
 }
 
+
+/* ============================================================
+   ECRAN DE CHARGEMENT
+   ============================================================ */
+
+function hideLoadingOverlay(){
+  const overlay = document.getElementById("loadingOverlay");
+  if(!overlay) return;
+  overlay.style.display = "none";
+}
 
 /* ============================================================
    CACHE V4
