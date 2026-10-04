@@ -381,6 +381,46 @@ button.active{
   color:#9d234b;
 }
 
+
+/* ECRAN DE CHARGEMENT INITIAL */
+#loadingOverlay{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,.97);
+  padding:24px;
+}
+.loading-box{
+  max-width:520px;
+  text-align:center;
+  color:var(--ink);
+}
+.loading-spinner{
+  width:54px;
+  height:54px;
+  margin:0 auto 18px;
+  border:6px solid #dbe7f4;
+  border-top-color:var(--fra);
+  border-radius:50%;
+  animation:loadingSpin .9s linear infinite;
+}
+.loading-title{
+  font-size:22px;
+  font-weight:800;
+  margin-bottom:10px;
+}
+.loading-text{
+  font-size:15px;
+  line-height:1.5;
+  color:var(--muted);
+}
+@keyframes loadingSpin{
+  to{transform:rotate(360deg);}
+}
+
 @media(max-width:1220px){
   .disc-grid{
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -413,6 +453,17 @@ button.active{
 </head>
 
 <body>
+
+<div id="loadingOverlay" role="status" aria-live="polite">
+  <div class="loading-box">
+    <div class="loading-spinner" aria-hidden="true"></div>
+    <div class="loading-title">Chargement des données FIS…</div>
+    <div class="loading-text">
+      Le premier affichage peut prendre <strong>jusqu’à 30 secondes</strong>.<br>
+      Merci de patienter.
+    </div>
+  </div>
+</div>
 
 <main>
 
@@ -1647,6 +1698,7 @@ function loadCache(){
     rebuildBasicMap();
     updateSubtitle();
     render();
+    hideLoadingOverlay();
 
 
     return true;
@@ -1773,6 +1825,7 @@ function applyPayload(payload){
   rebuildBasicMap();
   updateSubtitle();
   render();
+  hideLoadingOverlay();
 
 }
 
@@ -1873,6 +1926,9 @@ async function refreshFromServer(hasCache){
     if(hasCache){
       return;
     }
+
+
+    hideLoadingOverlay();
 
 
     document
