@@ -551,7 +551,7 @@ const DATA_URL =
    ============================================================ */
 
 const CACHE_KEY =
-"fis_normal_list_top100_v4";
+"fis_normal_list_top100_v5";
 
 
 let ATHLETES = [];
@@ -710,6 +710,14 @@ function normalizeAthletes(source){
             a.fullname ??
             ""
           ).trim(),
+
+        Birthyear:
+          Number(
+            a.Birthyear ??
+            a.BirthYear ??
+            a.birthyear ??
+            0
+          ) || null,
 
         Gender:
           String(
@@ -1126,6 +1134,7 @@ function tooltipHtml(
 
               <span class="name">
                 ${escapeHtml(a.Fullname)}
+                ${a.Birthyear !== null ? ` — ${escapeHtml(a.Birthyear)}` : ""}
               </span>
 
               <span class="pts">
@@ -1717,7 +1726,7 @@ function loadCache(){
   }catch(error){
 
     console.warn(
-      "Cache FIS v4 inutilisable",
+      "Cache FIS v5 inutilisable",
       error
     );
 
