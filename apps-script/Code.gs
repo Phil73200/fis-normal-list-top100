@@ -1736,7 +1736,7 @@ function creerDeclencheurHebdomadaire() {
   });
 
   if (exists) {
-    SpreadsheetApp.getUi().alert(
+    console.log(
       'Un déclencheur de l’import existe déjà. Il est conservé ; aucun déclencheur du mardi supplémentaire n’a été créé.'
     );
     return;
@@ -1749,7 +1749,7 @@ function creerDeclencheurHebdomadaire() {
     .inTimezone('Europe/Paris')
     .create();
 
-  SpreadsheetApp.getUi().alert(
+  console.log(
     'Mise à jour ajoutée le mardi entre 16 h et 17 h (heure de Paris). Les autres déclencheurs sont conservés.'
   );
 }
@@ -1771,7 +1771,7 @@ function ajouterDeclencheurMercredi() {
   });
 
   if (exists) {
-    SpreadsheetApp.getUi().alert('Le déclencheur du mercredi existe déjà. Aucun changement.');
+    console.log('Le déclencheur du mercredi existe déjà. Aucun changement.');
     return;
   }
 
@@ -1782,7 +1782,7 @@ function ajouterDeclencheurMercredi() {
     .inTimezone('Europe/Paris')
     .create();
 
-  SpreadsheetApp.getUi().alert(
+  console.log(
     'Mise à jour ajoutée le mercredi entre 12 h et 13 h (heure de Paris). Les déclencheurs existants sont conservés.'
   );
 }
